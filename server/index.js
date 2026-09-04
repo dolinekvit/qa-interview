@@ -32,7 +32,7 @@ app.get('/api/me', auth, (req, res) => {
   res.json(TENANTS[req.tenantId]);
 });
 
-app.get('/api/stock-items', auth, jitter(90, 620), (req, res) => {
+app.get('/api/stock-items', auth, jitter(80, 430), (req, res) => {
   res.json(db.stockItems);
 });
 

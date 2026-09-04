@@ -23,6 +23,15 @@ test('Pekárna Novák cannot see stock items belonging to Consi', async ({ page 
   await expect(page.getByText('Chléb konzumní kmínový 1200g')).toHaveCount(0);
 });
 
+test('no rows from another tenant are rendered in the item list', async ({ page }) => {
+  await page.goto('/?token=tok-consi');
+  await expect(page.locator('[data-testid="stock-row"]').first()).toBeVisible();
+
+  await expect(
+    page.locator('[data-testid="stock-row"][data-tenant="pekarna-novak"]')
+  ).toHaveCount(0);
+});
+
 test('a request without a token is rejected', async ({ request }) => {
   const res = await request.get('/api/stock-items');
   expect(res.status()).toBe(401);
