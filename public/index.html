@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8" />
+    <title>ARTOSoft — Sklad</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 60rem; }
+      table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; }
+      th, td { border: 1px solid #ccc; padding: .4rem .6rem; text-align: left; font-size: .9rem; }
+      th { background: #f2f2f2; }
+      .expired { color: #b00020; font-weight: 600; }
+      fieldset { margin-bottom: 1.5rem; }
+      label { display: inline-block; min-width: 9rem; }
+      input, select { padding: .25rem; margin-bottom: .35rem; }
+      #flash { padding: .5rem; margin-bottom: 1rem; }
+      #flash.ok { background: #e6f4ea; }
+      #flash.err { background: #fce8e6; }
+      #loading { color: #666; font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <h1 data-testid="tenant-name">…</h1>
+
+    <div id="flash" hidden data-testid="flash"></div>
+    <div id="loading" data-testid="loading">Načítám…</div>
+
+    <h2>Skladové položky</h2>
+    <table>
+      <thead>
+        <tr><th>SKU</th><th>Název</th><th>Druh</th><th>Sledování</th><th>Značení data</th></tr>
+      </thead>
+      <tbody id="items"></tbody>
+    </table>
+
+    <h2>Šarže</h2>
+    <table>
+      <thead>
+        <tr><th>Šarže</th><th>Položka</th><th>Množství</th><th>Datum</th><th>Akce</th></tr>
+      </thead>
+      <tbody id="batches"></tbody>
+    </table>
+
+    <fieldset>
+      <legend>Příjem zboží</legend>
+      <div><label for="r-item">Položka</label><select id="r-item" data-testid="receipt-item"></select></div>
+      <div><label for="r-lot">Číslo šarže</label><input id="r-lot" data-testid="receipt-lot" /></div>
+      <div><label for="r-qty">Množství</label><input id="r-qty" type="number" data-testid="receipt-qty" /></div>
+      <div><label for="r-exp">Datum spotřeby</label><input id="r-exp" type="date" data-testid="receipt-expiry" /></div>
+      <button id="r-submit" data-testid="receipt-submit">Naskladnit</button>
+    </fieldset>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const TOKEN = params.get('token') || 'tok-consi';
+
+      const api = (path, opts = {}) =>
+        fetch(path, {
+          ...opts,
+          headers: {
+            'content-type': 'application/json',
+            'x-tenant-token': TOKEN,
+            ...(opts.headers || {}),
+          },
+        });
+
+      let me = null;
+
+      function flash(msg, ok) {
+        const el = document.getElementById('flash');
+        el.textContent = msg;
+        el.className = ok ? 'ok' : 'err';
+        el.hidden = false;
+      }
+
+      async function loadItems() {
+        const res = await api('/api/stock-items');
+        const all = await res.json();
+        // Only show rows belonging to the signed-in tenant.
+        const mine = all.filter((i) => i.tenantId === me.id);
+
+        document.getElementById('items').innerHTML = mine
+          .map(
+            (i) => `<tr data-testid="stock-row" data-sku="${i.sku}">
+              <td data-testid="stock-sku">${i.sku}</td>
+              <td data-testid="stock-name">${i.name}</td>
+              <td>${i.kind}</td>
+              <td>${i.trackingMode}</td>
+              <td>${i.dateMarkingType}</td>
+            </tr>`
+          )
+          .join('');
+
+        document.getElementById('r-item').innerHTML = mine
+          .map((i) => `<option value="${i.id}">${i.name}</option>`)
+          .join('');
+
+        document.getElementById('loading').hidden = true;
+        return mine;
+      }
+
+      async function loadBatches(items) {
+        const res = await api('/api/batches');
+        const rows = await res.json();
+        const today = new Date().toISOString().slice(0, 10);
+        const nameOf = (id) => (items.find((i) => i.id === id) || {}).name || id;
+
+        document.getElementById('batches').innerHTML = rows
+          .map((b) => {
+            const expired = b.expiresAt && b.expiresAt < today;
+            return `<tr data-testid="batch-row" data-batch="${b.id}">
+              <td data-testid="batch-lot">${b.lotCode || '—'}</td>
+              <td>${nameOf(b.stockItemId)}</td>
+              <td data-testid="batch-qty">${b.quantity}</td>
+              <td class="${expired ? 'expired' : ''}" data-testid="batch-expiry">${b.expiresAt || '—'}</td>
+              <td><button data-testid="expedite" data-batch="${b.id}">Expedovat 1</button></td>
+            </tr>`;
+          })
+          .join('');
+      }
+
+      async function refresh() {
+        const items = await loadItems();
+        await loadBatches(items);
+      }
+
+      document.getElementById('r-submit').addEventListener('click', async () => {
+        const body = {
+          stockItemId: document.getElementById('r-item').value,
+          lotCode: document.getElementById('r-lot').value,
+          quantity: Number(document.getElementById('r-qty').value),
+          expiresAt: document.getElementById('r-exp').value || null,
+        };
+        const res = await api('/api/batches', { method: 'POST', body: JSON.stringify(body) });
+        const data = await res.json();
+        if (res.ok) flash('Šarže naskladněna: ' + data.id, true);
+        else flash('Chyba: ' + data.error, false);
+        await refresh();
+      });
+
+      document.addEventListener('click', async (e) => {
+        if (e.target.dataset.testid !== 'expedite') return;
+        const res = await api('/api/movements', {
+          method: 'POST',
+          body: JSON.stringify({
+            batchId: e.target.dataset.batch,
+            type: 'EXPEDITION',
+            quantity: 1,
+            reasonCode: 'EXPEDITION_SALE',
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) flash('Expedováno', true);
+        else flash('Chyba: ' + data.error, false);
+        await refresh();
+      });
+
+      (async () => {
+        me = await (await api('/api/me')).json();
+        document.getElementById('tenant-name').textContent = me.name;
+        await refresh();
+      })();
+    </script>
+  </body>
+</html>
