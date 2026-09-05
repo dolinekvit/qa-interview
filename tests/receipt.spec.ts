@@ -74,3 +74,12 @@ test('a lot code cannot be reused for the same item', async ({ page }) => {
 
   await expect(page.getByTestId('flash')).toContainText('Chyba');
 });
+
+test('an expired item cannot be expedited', async ({ page }) => {
+  await page.goto(CONSI);
+  const expiredItem = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'L2026-0829-CH', exact: true })})
+  await expiredItem.getByTestId('expedite').click();
+
+  await expect(page.getByTestId('flash')).toContainText('Chyba');
+  await expect(expiredItem).toContainText('60')
+})
