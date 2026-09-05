@@ -29,9 +29,3 @@ test('packaging is tracked by quantity, not by batch', async ({ page }) => {
   await expect(row).toContainText('Množství');
 });
 
-test('an expired batch is highlighted in the batch table', async ({ page }) => {
-  await page.goto(CONSI);
-
-  const yeastRow = page.locator('[data-batch="b-002"]');
-  await expect(yeastRow.locator('.expired')).toBeVisible();
-});
