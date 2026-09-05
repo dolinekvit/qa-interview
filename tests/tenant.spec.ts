@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test';
 // Consi and Pekárna Novák are two different customers on the same platform.
 // Neither may ever see the other's data.
 
+type StockItem = { id: string; sku: string; name: string; tenantId: string };
+
 test.beforeEach(async ({ request }) => {
   await request.post('/api/_reset');
 });
@@ -59,4 +61,18 @@ test('no rows from another tenant are rendered in the item list', async ({ page 
 test('a request without a token is rejected', async ({ request }) => {
   const res = await request.get('/api/stock-items');
   expect(res.status()).toBe(401);
+});
+
+test('/api/stock-items returns only the calling tenant\'s rows', async ({ request }) => {
+  const res = await request.get('/api/stock-items', {
+    headers: { 'x-tenant-token': 'tok-consi' },
+  });
+
+  expect(res.status()).toBe(200);
+
+  const items: StockItem[] = await res.json();
+
+  const foreign = items.filter((i) => i.tenantId !== 'consi')
+
+  expect(foreign, '/api/stock-items leaked rows belonging to another tenant').toEqual([]);
 });
