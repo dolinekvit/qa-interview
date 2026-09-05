@@ -7,6 +7,30 @@ test.beforeEach(async ({ request }) => {
   await request.post('/api/_reset');
 });
 
+test('No data are displayed without token', async({ page }) => {
+  await page.goto('/')
+  await expect(page.getByTestId('loading')).toBeHidden()
+
+  await expect(page.getByTestId('tenant-name')).toBeEmpty()
+
+  const table = page.getByRole('table').filter({
+    has: page.getByRole('columnheader', { name: 'SKU', exact: true })
+  })
+
+  const body = table.getByRole('rowgroup').filter({
+    hasNot: page.getByRole('columnheader')
+  })
+
+  await expect(body.getByRole('row')).toHaveCount(0)
+
+})
+
+test('Invalid token displays proper error', async ({ page }) => {
+  await page.goto('/?token=invalid')
+
+  await expect(page.getByTestId('flash')).toContainText(/tenant neexistuje/i)
+})
+
 test('Consi cannot see stock items belonging to Pekárna Novák', async ({ page }) => {
   await page.goto('/?token=tok-consi');
   await expect(page.locator('[data-testid="stock-row"]').first()).toBeVisible();
