@@ -2,6 +2,10 @@ import { test, expect } from '@playwright/test';
 
 const CONSI = '/?token=tok-consi';
 
+test.beforeEach(async ({ request }) => {
+  await request.post('/api/_reset');
+});
+
 test('a new flour batch can be received', async ({ page }) => {
   await page.goto(CONSI);
   await expect(page.locator('[data-testid="stock-row"]').first()).toBeVisible();
