@@ -17,7 +17,7 @@ test('flour is shown with all the parameters', async ({ page }) => {
 
   const row = page.locator('[data-sku="MOU-T530"]');
   await expect(row.getByTestId('stock-name')).toHaveText('Mouka pšeničná hladká T530');
-  await expect(row).toContainText('BATCH');
+  await expect(row).toContainText('Šarže');
   await expect(row).toContainText('Ingredience')
   await expect(row).toContainText('Minimální trvanlivost')
 });
@@ -26,7 +26,7 @@ test('packaging is tracked by quantity, not by batch', async ({ page }) => {
   await page.goto(CONSI);
 
   const row = page.locator('[data-sku="SAC-PAP-500"]');
-  await expect(row).toContainText('QUANTITY');
+  await expect(row).toContainText('Množství');
 });
 
 test('an expired batch is highlighted in the batch table', async ({ page }) => {
