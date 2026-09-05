@@ -8,10 +8,8 @@ test.beforeEach(async ({ request }) => {
 
 test('stock item list loads for the signed-in tenant', async ({ page }) => {
   await page.goto(CONSI);
-  await page.waitForTimeout(300);
 
-  const rows = await page.locator('[data-testid="stock-row"]').count();
-  expect(rows).toBe(4);
+  await expect(page.getByTestId('stock-row')).toHaveCount(4);
 });
 
 test('flour is shown with its name and tracking mode', async ({ page }) => {
