@@ -12,12 +12,14 @@ test('stock item list loads for the signed-in tenant', async ({ page }) => {
   await expect(page.getByTestId('stock-row')).toHaveCount(4);
 });
 
-test('flour is shown with its name and tracking mode', async ({ page }) => {
+test('flour is shown with all the parameters', async ({ page }) => {
   await page.goto(CONSI);
 
   const row = page.locator('[data-sku="MOU-T530"]');
-  await expect(row.locator('[data-testid="stock-name"]')).toHaveText('Mouka pšeničná hladká T530');
+  await expect(row.getByTestId('stock-name')).toHaveText('Mouka pšeničná hladká T530');
   await expect(row).toContainText('BATCH');
+  await expect(row).toContainText('Ingredience')
+  await expect(row).toContainText('Minimální trvanlivost')
 });
 
 test('packaging is tracked by quantity, not by batch', async ({ page }) => {
